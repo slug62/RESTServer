@@ -1,5 +1,7 @@
 from socket import socket
 import json
+import re
+from db_util import db
 
 import logging
 
@@ -21,7 +23,12 @@ if __name__ == "__main__":
     sock = socket()
     sock.bind(('', server_port()))
     sock.listen(0)  # 0 backlog of connections
-    ACCEPTABLE_REQUEST_TYPES = ["E", "S"]
+    ACCEPTABLE_REQUEST_TYPES = ["/area",
+                                "/area/(\d+)/location",
+                                "/location/(\d+)/measurement",
+                                "/area/(\d+)/category",
+                                "/area/(\d+)/average_measurement",
+                                "/area/(\d+)/number_locations"]
 
     while True:
         (conn, address) = sock.accept()
@@ -41,35 +48,16 @@ if __name__ == "__main__":
         logging.info("all data received: " + data_string)
         response = 'response was not properly set'
 
-        values = data_string.split(' ')
-        logging.info("values: {}".format(values))
-        logging.info("Peter test: {}, number of values: {}".format(values[0][0], len(values)))
-        if len(values) <= 1 or values[0][0] not in ACCEPTABLE_REQUEST_TYPES:
-            logging.error("Invalid request syntax |{}|".format(data_string))
-            response = 'XInvalid request syntax, Your request either did not start with an E or S,' \
-                       ' or you had too few arguments'
+
+        if data_string not in ACCEPTABLE_REQUEST_TYPES:
+            logging.error('Invalid request syntax |{}|'.format(data_string))
+            response = {'e': 'Invalid Request, to appropriate reqeusts are {}'.format(ACCEPTABLE_REQUEST_TYPES)}
         else:
-            if values[0][0] == ACCEPTABLE_REQUEST_TYPES[0]:
+            if data_string == ACCEPTABLE_REQUEST_TYPES[0]:
                 try:
-                    x = float(values[0][1:])
-                    poly = [float(x) for x in values[1:]]
-                    result = polynomials.evaluate(x, poly)
-                    logging.info("Evaluating {} for {}".format(x, poly))
-                    print("Result: ", result)
-                    response = "E" + str(result)
+                    response = json.dumps(db.do_command('Select * from area'))
                 except:
-                    response = 'Xinvalid numeric format'
-            elif values[0][0] == ACCEPTABLE_REQUEST_TYPES[1]:
-                try:
-                    a = float(values[0][1:])
-                    b = float(values[1])
-                    poly = [float(x) for x in values[2:len(values) - 1]]
-                    tolerance = float(values[len(values) - 1])
-                    logging.info("Bisection with a:{}, b{}, poly{}, tolerance{}".format(a, b, poly, tolerance))
-                    result = polynomials.bisection(a, b, poly, tolerance)
-                    response = "S" + str(result)
-                except:
-                    response = 'Xinvalid numeric format'
+                    response = {'e': "There was an error proccessing your 'area' request"}
 
         conn.sendall(response.encode(encoding))
         conn.shutdown(1)  ## shutdown the sending side
