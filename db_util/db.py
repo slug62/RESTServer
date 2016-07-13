@@ -27,7 +27,7 @@ def do_command(cmd, args=[]):
     try:
         crs = conn.cursor()
         crs.execute(cmd, args)
-        rtval =  crs.fetchall()
+        rtval = crs.fetchall()
         conn.commit()
         return rtval
     finally:
